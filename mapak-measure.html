@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Mapak · Precision Measure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --blueprint:#0f2d4a;
+    --blueprint-deep:#0a2138;
+    --panel:#123556;
+    --grid-line:rgba(255,255,255,0.055);
+    --ink:#eef4f9;
+    --dim-ink:#93add0;
+    --brass:#e0a44e;
+    --brass-deep:#b57f34;
+    --tape-red:#e2543a;
+    --lcd-bg:#cfe0c9;
+    --lcd-bezel:#4a5c46;
+    --lcd-digit:#20301e;
+    --lcd-digit-dim:#3d4a3a;
+    --border:rgba(255,255,255,0.12);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;min-height:100%;}
+  body{
+    background-color:var(--blueprint);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size:24px 24px;
+    color:var(--ink);
+    font-family:'IBM Plex Sans',-apple-system,sans-serif;
+    overflow-x:hidden;
+  }
+  #app{display:flex;flex-direction:column;min-height:100vh;max-width:560px;margin:0 auto;position:relative;}
+
+  /* corner registration marks */
+  #app::before, #app::after{
+    content:'';position:absolute;top:8px;width:14px;height:14px;
+    border-top:2px solid var(--brass); pointer-events:none; opacity:0.8;
+  }
+  #app::before{left:8px;border-left:2px solid var(--brass);}
+  #app::after{right:8px;border-right:2px solid var(--brass);}
+
+  header{padding:22px 20px 14px;}
+  header .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brass);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;}
+  header h1{margin:0;font-size:26px;font-weight:700;letter-spacing:0.3px;}
+  header h1 .hi{font-weight:400;color:var(--dim-ink);font-size:18px;margin-left:6px;}
+  header p{margin:6px 0 0;color:var(--dim-ink);font-size:12.5px;}
+
+  .ruler-strip{
+    height:9px;
+    background-image:repeating-linear-gradient(90deg, var(--brass) 0 1px, transparent 1px 12px);
+    opacity:0.55;
+    margin-bottom:2px;
+  }
+
+  nav{display:flex;background:var(--blueprint-deep);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;}
+  nav button{flex:1;padding:13px 0;background:none;border:none;color:var(--dim-ink);font-family:'IBM Plex Mono',monospace;font-size:12.5px;letter-spacing:1px;text-transform:uppercase;font-weight:600;border-bottom:3px solid transparent;}
+  nav button.active{color:var(--brass);border-color:var(--brass);}
+
+  main{flex:1;padding:18px 16px 44px;}
+  .tab{display:none;}
+  .tab.active{display:block;}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:14px;}
+  .eyebrow-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brass);letter-spacing:1.6px;text-transform:uppercase;margin:0 0 10px;}
+
+  /* LCD readout, styled like a digital caliper display */
+  .lcd{
+    background:var(--lcd-bg);
+    border:3px solid var(--lcd-bezel);
+    border-radius:6px;
+    padding:16px 10px 12px;
+    position:relative;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,0.28);
+    margin-bottom:10px;
+  }
+  .lcd::before, .lcd::after{
+    content:'';position:absolute;width:6px;height:6px;border-radius:50%;
+    background:#5c6b57; top:6px;
+  }
+  .lcd::before{left:6px;}
+  .lcd::after{right:6px;}
+  .lcd .value{
+    font-family:'IBM Plex Mono',monospace;font-size:38px;font-weight:600;
+    color:var(--lcd-digit); text-align:center; letter-spacing:1px; line-height:1;
+  }
+  .lcd .unit{
+    font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--lcd-digit-dim);
+    text-align:center;margin-top:4px;letter-spacing:1px;text-transform:uppercase;
+  }
+
+  .row{display:flex;gap:8px;flex-wrap:wrap;}
+  button.btn{background:var(--brass);color:#20140a;border:none;border-radius:8px;padding:12px 14px;font-family:'IBM Plex Sans',sans-serif;font-size:13.5px;font-weight:600;flex:1;min-width:118px;}
+  button.btn.secondary{background:transparent;color:var(--ink);border:1px solid var(--border);}
+  button.btn.danger{background:var(--tape-red);color:#2a0603;}
+  button.btn:disabled{opacity:0.35;}
+
+  select, input[type=number]{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--blueprint-deep);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:14px;margin-top:8px;}
+
+  video, canvas{width:100%;border-radius:8px;background:#000;display:block;touch-action:none;}
+  #lengthCanvas{cursor:crosshair;}
+
+  .hint{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--dim-ink);line-height:1.6;margin-top:10px;}
+  .hint b{color:var(--ink);}
+
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;}
+  .stat{background:var(--blueprint-deep);border:1px solid var(--border);border-radius:8px;padding:9px 4px;text-align:center;}
+  .stat .v{font-family:'IBM Plex Mono',monospace;font-size:15px;color:var(--brass);}
+  .stat .l{font-size:9.5px;color:var(--dim-ink);text-transform:uppercase;letter-spacing:0.6px;margin-top:2px;}
+
+  .warn-card{border-color:var(--tape-red);}
+  .warn-card .eyebrow-label{color:var(--tape-red);}
+
+  #speedChart{width:100%;height:70px;display:block;border-radius:6px;background:var(--blueprint-deep);margin-top:4px;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="eyebrow">Instrument · v1.0</div>
+    <h1>MAPAK <span class="hi">मापक</span></h1>
+    <p>Camera + GPS measuring — length (curved too), distance &amp; speed</p>
+  </header>
+  <div class="ruler-strip"></div>
+
+  <div class="card warn-card" id="secureWarning" style="display:none; margin:14px 16px 0;">
+    <div class="eyebrow-label">⚠ Secure connection needed</div>
+    <p class="hint" style="margin-top:0;">Camera aur GPS access ke liye ye page HTTPS (ya localhost) par open hona chahiye. File ko direct kholne (file://) par browser permissions block kar sakta hai — is HTML ko kisi static host (GitHub Pages / Netlify Drop) par daal kar try karo, ya Claude ke andar hi is preview ko use karo.</p>
+  </div>
+
+  <nav>
+    <button class="tabBtn active" data-tab="length">Length</button>
+    <button class="tabBtn" data-tab="distance">Distance</button>
+    <button class="tabBtn" data-tab="speed">Speed</button>
+  </nav>
+
+  <main>
+    <!-- ================= LENGTH TAB ================= -->
+    <div class="tab active" id="tab-length">
+
+      <div class="card" id="captureCard">
+        <div class="eyebrow-label">Step 1 — Capture</div>
+        <video id="video" autoplay playsinline muted></video>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="startCamBtn">Start Camera</button>
+          <button class="btn secondary" id="captureBtn" disabled>Capture Photo</button>
+        </div>
+        <p class="hint">Object ko <b>flat</b> surface par rakho, phone ko <b>seedha upar se (90°)</b> pakdo, aur ek <b>reference object</b> (card / coin) usi frame &amp; usi plane me rakho. Yehi scale accuracy decide karta hai.</p>
+      </div>
+
+      <div class="card" id="measureCard" style="display:none;">
+        <div class="eyebrow-label" id="measureStepTitle">Step 2 — Set scale</div>
+        <canvas id="lengthCanvas"></canvas>
+
+        <div id="calibControls">
+          <select id="refObject">
+            <option value="85.6">Credit / Debit Card — 85.6 mm</option>
+            <option value="210">A4 Paper (short side) — 210 mm</option>
+            <option value="21.93">₹1 Coin — 21.93 mm</option>
+            <option value="25">₹2 Coin — 25 mm</option>
+            <option value="23">₹5 Coin — 23 mm</option>
+            <option value="27">₹10 Coin — 27 mm</option>
+            <option value="custom">Custom length…</option>
+          </select>
+          <input type="number" id="customLen" placeholder="Known length in mm" style="display:none;">
+          <p class="hint">Reference object ke <b>2 known edges</b> par tap karo (uski poori known length ke dono end points).</p>
+          <div class="row" style="margin-top:6px;">
+            <button class="btn secondary" id="undoCalibBtn">Undo Point</button>
+            <button class="btn" id="confirmCalibBtn" disabled>Confirm Scale →</button>
+          </div>
+        </div>
+
+        <div id="traceControls" style="display:none;">
+          <div class="lcd">
+            <div class="value" id="lengthResult">0.0</div>
+            <div class="unit" id="lengthUnitLabel">mm</div>
+          </div>
+          <p class="hint">Ab object ke <b>curve/mod ke saath-saath</b> point-by-point tap karte jao — jitne zyada points, utna smooth &amp; accurate total length.</p>
+          <div class="row">
+            <button class="btn secondary" id="undoTraceBtn">Undo Point</button>
+            <button class="btn secondary" id="clearTraceBtn">Clear Trace</button>
+          </div>
+          <div class="row" style="margin-top:8px;">
+            <button class="btn secondary" id="newPhotoBtn">↺ New Photo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= DISTANCE TAB ================= -->
+    <div class="tab" id="tab-distance">
+      <div class="card">
+        <div class="eyebrow-label">Mode</div>
+        <div class="row">
+          <button class="btn" id="modeTwoPoint">Two-Point (A→B)</button>
+          <button class="btn secondary" id="modeTrackPath">Track My Path</button>
+        </div>
+      </div>
+
+      <div class="card" id="twoPointCard">
+        <div class="eyebrow-label">Two-Point Distance</div>
+        <div class="lcd">
+          <div class="value" id="twoPointValue">—</div>
+          <div class="unit" id="twoPointUnit">m</div>
+        </div>
+        <div class="row">
+          <button class="btn" id="setPointA">Set Point A (here)</button>
+          <button class="btn" id="setPointB">Set Point B (here)</button>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="v" id="gpsAccuracyA">—</div><div class="l">A accuracy</div></div>
+          <div class="stat"><div class="v" id="gpsAccuracyB">—</div><div class="l">B accuracy</div></div>
+          <div class="stat"><div class="v" id="combinedAccuracy">—</div><div class="l">± error</div></div>
+        </div>
+        <p class="hint">Phone GPS ki typical accuracy open sky me <b>3–8 m</b> hoti hai. <10 m distances ke liye GPS reliable nahi — us case me <b>Length tab</b> (camera method) use karo.</p>
+      </div>
+
+      <div class="card" id="trackPathCard" style="display:none;">
+        <div class="eyebrow-label">Live Path Tracking</div>
+        <div class="lcd">
+          <div class="value" id="pathValue">0.0</div>
+          <div class="unit" id="pathUnit">m</div>
+        </div>
+        <div class="row">
+          <button class="btn" id="startTrackBtn">Start</button>
+          <button class="btn secondary" id="stopTrackBtn" disabled>Stop</button>
+          <button class="btn secondary" id="resetTrackBtn">Reset</button>
+        </div>
+        <div class="stat-grid">
+          <div class="stat"><div class="v" id="trackAccuracy">—</div><div class="l">GPS accuracy</div></div>
+          <div class="stat"><div class="v" id="trackPointsEl">0</div><div class="l">Segments</div></div>
+          <div class="stat"><div class="v" id="trackDuration">0s</div><div class="l">Duration</div></div>
+        </div>
+        <p class="hint">Chhote (&lt;2m) jitter moves ko ignore kiya jata hai taaki khade rehne par fake distance na jude.</p>
+      </div>
+    </div>
+
+    <!-- ================= SPEED TAB ================= -->
+    <div class="tab" id="tab-speed">
+      <div class="card">
+        <div class="eyebrow-label">Live Speed</div>
+        <div class="lcd">
+          <div class="value"><span id="speedValue">0.0</span></div>
+          <div class="unit" id="speedUnitLabel">km/h</div>
+        </div>
+        <div class="hint" id="speedAccuracyNote" style="margin-top:0;">GPS accuracy: —</div>
+        <canvas id="speedChart"></canvas>
+        <div class="stat-grid">
+          <div class="stat"><div class="v" id="speedAvg">0.0</div><div class="l">avg</div></div>
+          <div class="stat"><div class="v" id="speedMax">0.0</div><div class="l">max</div></div>
+          <div class="stat"><div class="v" id="speedUnitStat">km/h</div><div class="l">unit</div></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn" id="startSpeedBtn">Start</button>
+          <button class="btn secondary" id="stopSpeedBtn" disabled>Stop</button>
+          <button class="btn secondary" id="toggleUnitBtn">km/h ⇄ mph</button>
+        </div>
+        <p class="hint">Chalte/gaadi me GPS speed kaafi reliable hai (±2–3 km/h). Khade hoke ya bahut slow chalne par reading noisy ho sakti hai — isliye 5-reading rolling average use ho raha hai.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  // ---------- global support checks ----------
+  if(!window.isSecureContext){
+    document.getElementById('secureWarning').style.display='block';
+  }
+
+  // ---------- tab switching ----------
+  document.querySelectorAll('.tabBtn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tabBtn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ================= LENGTH TAB =================
+  var video = document.getElementById('video');
+  var canvas = document.getElementById('lengthCanvas');
+  var ctx = canvas.getContext('2d');
+  var startCamBtn = document.getElementById('startCamBtn');
+  var captureBtn = document.getElementById('captureBtn');
+  var captureCard = document.getElementById('captureCard');
+  var measureCard = document.getElementById('measureCard');
+  var measureStepTitle = document.getElementById('measureStepTitle');
+  var calibControls = document.getElementById('calibControls');
+  var traceControls = document.getElementById('traceControls');
+  var refObjectSel = document.getElementById('refObject');
+  var customLenInput = document.getElementById('customLen');
+  var undoCalibBtn = document.getElementById('undoCalibBtn');
+  var confirmCalibBtn = document.getElementById('confirmCalibBtn');
+  var undoTraceBtn = document.getElementById('undoTraceBtn');
+  var clearTraceBtn = document.getElementById('clearTraceBtn');
+  var newPhotoBtn = document.getElementById('newPhotoBtn');
+  var lengthResultEl = document.getElementById('lengthResult');
+  var lengthUnitLabelEl = document.getElementById('lengthUnitLabel');
+
+  var camStream = null;
+  var baseImg = null;
+  var mode = 'calib'; // 'calib' | 'trace'
+  var calibPoints = [];
+  var tracePoints = [];
+  var pxPerMm = null;
+
+  startCamBtn.addEventListener('click', function(){
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      alert('Ye browser camera access support nahi karta.');
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}, width:{ideal:1920}, height:{ideal:1080}}, audio:false})
+      .then(function(stream){
+        camStream = stream;
+        video.srcObject = stream;
+        captureBtn.disabled = false;
+        startCamBtn.textContent = 'Camera On ✓';
+        startCamBtn.disabled = true;
+      })
+      .catch(function(e){
+        alert('Camera access nahi mila: ' + e.message);
+      });
+  });
+
+  captureBtn.addEventListener('click', function(){
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    baseImg = new Image();
+    baseImg.onload = function(){ redrawLengthCanvas(); };
+    baseImg.src = canvas.toDataURL('image/jpeg', 0.92);
+
+    if(camStream){ camStream.getTracks().forEach(function(t){ t.stop(); }); }
+
+    captureCard.style.display = 'none';
+    measureCard.style.display = 'block';
+    mode = 'calib';
+    calibPoints = [];
+    tracePoints = [];
+    pxPerMm = null;
+    calibControls.style.display = 'block';
+    traceControls.style.display = 'none';
+    measureStepTitle.textContent = 'Step 2 — Set scale';
+    confirmCalibBtn.disabled = true;
+  });
+
+  refObjectSel.addEventListener('change', function(){
+    customLenInput.style.display = refObjectSel.value === 'custom' ? 'block' : 'none';
+  });
+
+  function getCanvasPos(evt){
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    return { x: (evt.clientX - rect.left) * scaleX, y: (evt.clientY - rect.top) * scaleY };
+  }
+
+  canvas.addEventListener('pointerdown', function(e){
+    if(!baseImg) return;
+    var pos = getCanvasPos(e);
+    if(mode === 'calib'){
+      if(calibPoints.length >= 2) return;
+      calibPoints.push(pos);
+      confirmCalibBtn.disabled = calibPoints.length < 2;
+    } else if(mode === 'trace'){
+      tracePoints.push(pos);
+      updateLengthDisplay(computeTraceLengthMm());
+    }
+    redrawLengthCanvas();
+  });
+
+  undoCalibBtn.addEventListener('click', function(){
+    calibPoints.pop();
+    confirmCalibBtn.disabled = calibPoints.length < 2;
+    redrawLengthCanvas();
+  });
+
+  confirmCalibBtn.addEventListener('click', function(){
+    var dx = calibPoints[1].x - calibPoints[0].x;
+    var dy = calibPoints[1].y - calibPoints[0].y;
+    var pixelDist = Math.sqrt(dx*dx + dy*dy);
+    var knownMm = refObjectSel.value === 'custom' ? parseFloat(customLenInput.value) : parseFloat(refObjectSel.value);
+    if(!knownMm || knownMm <= 0){ alert('Sahi known length daalo (mm me).'); return; }
+    if(pixelDist < 10){ alert('Dono points bahut paas hain — zoom karke dobara try karo, warna scale galat ban jayega.'); return; }
+    pxPerMm = pixelDist / knownMm;
+    mode = 'trace';
+    calibControls.style.display = 'none';
+    traceControls.style.display = 'block';
+    measureStepTitle.textContent = 'Step 3 — Trace the length';
+    tracePoints = [];
+    updateLengthDisplay(0);
+    redrawLengthCanvas();
+  });
+
+  undoTraceBtn.addEventListener('click', function(){
+    tracePoints.pop();
+    updateLengthDisplay(computeTraceLengthMm());
+    redrawLengthCanvas();
+  });
+
+  clearTraceBtn.addEventListener('click', function(){
+    tracePoints = [];
+    updateLengthDisplay(0);
+    redrawLengthCanvas();
+  });
+
+  newPhotoBtn.addEventListener('click', function(){
+    measureCard.style.display = 'none';
+    captureCard.style.display = 'block';
+    startCamBtn.textContent = 'Start Camera';
+    startCamBtn.disabled = false;
+    captureBtn.disabled = true;
+    baseImg = null;
+    calibPoints = [];
+    tracePoints = [];
+    pxPerMm = null;
+  });
+
+  function drawPointsAndLines(points, color){
+    var r = Math.max(4, canvas.width * 0.006);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = Math.max(2, canvas.width * 0.0035);
+    ctx.beginPath();
+    points.forEach(function(p, i){
+      if(i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+    points.forEach(function(p){
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function redrawLengthCanvas(){
+    if(!baseImg) return;
+    ctx.drawImage(baseImg, 0, 0, canvas.width, canvas.height);
+    if(calibPoints.length > 0){ drawPointsAndLines(calibPoints, '#e0a44e'); }
+    if(mode === 'trace' && tracePoints.length > 0){ drawPointsAndLines(tracePoints, '#e2543a'); }
+  }
+
+  function computeTraceLengthMm(){
+    var totalPx = 0;
+    for(var i = 1; i < tracePoints.length; i++){
+      var dx = tracePoints[i].x - tracePoints[i-1].x;
+      var dy = tracePoints[i].y - tracePoints[i-1].y;
+      totalPx += Math.sqrt(dx*dx + dy*dy);
+    }
+    return pxPerMm ? totalPx / pxPerMm : 0;
+  }
+
+  function updateLengthDisplay(mm){
+    var val, unit;
+    if(mm < 10){ val = mm.toFixed(1); unit = 'mm'; }
+    else if(mm < 1000){ val = (mm/10).toFixed(2); unit = 'cm'; }
+    else { val = (mm/1000).toFixed(3); unit = 'm'; }
+    lengthResultEl.textContent = val;
+    lengthUnitLabelEl.textContent = unit;
+  }
+
+  // ================= DISTANCE TAB =================
+  var modeTwoPointBtn = document.getElementById('modeTwoPoint');
+  var modeTrackPathBtn = document.getElementById('modeTrackPath');
+  var twoPointCard = document.getElementById('twoPointCard');
+  var trackPathCard = document.getElementById('trackPathCard');
+  var setPointABtn = document.getElementById('setPointA');
+  var setPointBBtn = document.getElementById('setPointB');
+  var gpsAccuracyAEl = document.getElementById('gpsAccuracyA');
+  var gpsAccuracyBEl = document.getElementById('gpsAccuracyB');
+  var combinedAccuracyEl = document.getElementById('combinedAccuracy');
+  var twoPointValueEl = document.getElementById('twoPointValue');
+  var twoPointUnitEl = document.getElementById('twoPointUnit');
+
+  function haversine(lat1, lon1, lat2, lon2){
+    var R = 6371000;
+    var toRad = function(d){ return d * Math.PI / 180; };
+    var dLat = toRad(lat2 - lat1);
+    var dLon = toRad(lon2 - lon1);
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)*Math.sin(dLon/2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function setDistanceDisplay(valueEl, unitEl, m){
+    var val, unit;
+    if(m < 1000){ val = m.toFixed(1); unit = 'm'; }
+    else { val = (m/1000).toFixed(3); unit = 'km'; }
+    valueEl.textContent = val;
+    unitEl.textContent = unit;
+  }
+
+  modeTwoPointBtn.addEventListener('click', function(){
+    modeTwoPointBtn.classList.remove('secondary');
+    modeTrackPathBtn.classList.add('secondary');
+    twoPointCard.style.display = 'block';
+    trackPathCard.style.display = 'none';
+  });
+  modeTrackPathBtn.addEventListener('click', function(){
+    modeTrackPathBtn.classList.remove('secondary');
+    modeTwoPointBtn.classList.add('secondary');
+    twoPointCard.style.display = 'none';
+    trackPathCard.style.display = 'block';
+  });
+
+  function getPos(){
+    return new Promise(function(resolve, reject){
+      if(!navigator.geolocation){ reject(new Error('Geolocation not supported')); return; }
+      navigator.geolocation.getCurrentPosition(resolve, reject, {enableHighAccuracy:true, timeout:15000, maximumAge:0});
+    });
+  }
+
+  var pointA = null, pointB = null;
+
+  function updateTwoPointResult(){
+    if(pointA && pointB){
+      var d = haversine(pointA.lat, pointA.lon, pointB.lat, pointB.lon);
+      setDistanceDisplay(twoPointValueEl, twoPointUnitEl, d);
+      var combinedErr = (pointA.acc || 0) + (pointB.acc || 0);
+      combinedAccuracyEl.textContent = '±' + combinedErr.toFixed(0) + 'm';
+    }
+  }
+
+  setPointABtn.addEventListener('click', function(){
+    setPointABtn.textContent = 'Getting…';
+    getPos().then(function(pos){
+      pointA = {lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy};
+      gpsAccuracyAEl.textContent = '±' + pos.coords.accuracy.toFixed(0) + 'm';
+      setPointABtn.textContent = 'Point A ✓';
+      updateTwoPointResult();
+    }).catch(function(e){
+      alert('Location error: ' + e.message);
+      setPointABtn.textContent = 'Set Point A (here)';
+    });
+  });
+
+  setPointBBtn.addEventListener('click', function(){
+    setPointBBtn.textContent = 'Getting…';
+    getPos().then(function(pos){
+      pointB = {lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy};
+      gpsAccuracyBEl.textContent = '±' + pos.coords.accuracy.toFixed(0) + 'm';
+      setPointBBtn.textContent = 'Point B ✓';
+      updateTwoPointResult();
+    }).catch(function(e){
+      alert('Location error: ' + e.message);
+      setPointBBtn.textContent = 'Set Point B (here)';
+    });
+  });
+
+  // ---- Track path ----
+  var startTrackBtn = document.getElementById('startTrackBtn');
+  var stopTrackBtn = document.getElementById('stopTrackBtn');
+  var resetTrackBtn = document.getElementById('resetTrackBtn');
+  var pathValueEl = document.getElementById('pathValue');
+  var pathUnitEl = document.getElementById('pathUnit');
+  var trackAccuracyEl = document.getElementById('trackAccuracy');
+  var trackPointsEl = document.getElementById('trackPointsEl');
+  var trackDurationEl = document.getElementById('trackDuration');
+
+  var trackWatchId = null, trackTotal = 0, lastTrackPos = null, trackSegCount = 0, trackStartTime = null, trackTimerInt = null;
+
+  startTrackBtn.addEventListener('click', function(){
+    if(!navigator.geolocation){ alert('Geolocation supported nahi hai.'); return; }
+    trackTotal = 0; lastTrackPos = null; trackSegCount = 0; trackStartTime = Date.now();
+    setDistanceDisplay(pathValueEl, pathUnitEl, 0);
+    trackPointsEl.textContent = '0';
+
+    trackWatchId = navigator.geolocation.watchPosition(function(pos){
+      var lat = pos.coords.latitude, lon = pos.coords.longitude, acc = pos.coords.accuracy;
+      trackAccuracyEl.textContent = '±' + acc.toFixed(0) + 'm';
+      if(acc > 30){ return; }
+      if(lastTrackPos){
+        var d = haversine(lastTrackPos.lat, lastTrackPos.lon, lat, lon);
+        if(d > 1.5){
+          trackTotal += d;
+          lastTrackPos = {lat: lat, lon: lon};
+          trackSegCount++;
+        }
+      } else {
+        lastTrackPos = {lat: lat, lon: lon};
+      }
+      setDistanceDisplay(pathValueEl, pathUnitEl, trackTotal);
+      trackPointsEl.textContent = trackSegCount;
+    }, function(err){
+      alert('GPS error: ' + err.message);
+    }, {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
+
+    trackTimerInt = setInterval(function(){
+      var secs = Math.floor((Date.now() - trackStartTime) / 1000);
+      trackDurationEl.textContent = secs + 's';
+    }, 1000);
+
+    startTrackBtn.disabled = true;
+    stopTrackBtn.disabled = false;
+  });
+
+  stopTrackBtn.addEventListener('click', function(){
+    if(trackWatchId !== null){ navigator.geolocation.clearWatch(trackWatchId); trackWatchId = null; }
+    clearInterval(trackTimerInt);
+    startTrackBtn.disabled = false;
+    stopTrackBtn.disabled = true;
+  });
+
+  resetTrackBtn.addEventListener('click', function(){
+    trackTotal = 0; lastTrackPos = null; trackSegCount = 0;
+    setDistanceDisplay(pathValueEl, pathUnitEl, 0);
+    trackPointsEl.textContent = '0';
+    trackDurationEl.textContent = '0s';
+  });
+
+  // ================= SPEED TAB =================
+  var startSpeedBtn = document.getElementById('startSpeedBtn');
+  var stopSpeedBtn = document.getElementById('stopSpeedBtn');
+  var toggleUnitBtn = document.getElementById('toggleUnitBtn');
+  var speedValueEl = document.getElementById('speedValue');
+  var speedUnitLabelEl = document.getElementById('speedUnitLabel');
+  var speedUnitStatEl = document.getElementById('speedUnitStat');
+  var speedAvgEl = document.getElementById('speedAvg');
+  var speedMaxEl = document.getElementById('speedMax');
+  var speedAccuracyNoteEl = document.getElementById('speedAccuracyNote');
+  var speedChartCanvas = document.getElementById('speedChart');
+  var speedChartCtx = speedChartCanvas.getContext('2d');
+
+  var speedWatchId = null;
+  var speedBuffer = [];
+  var speedHistory = [];
+  var maxSpeedDisp = 0;
+  var unit = 'kmh';
+  var lastSpeedPos = null;
+  var totalDistForAvg = 0, totalTimeForAvg = 0;
+
+  function convertSpeed(mps){
+    return unit === 'kmh' ? mps * 3.6 : mps * 2.23694;
+  }
+
+  function drawSpeedChart(){
+    var w = speedChartCanvas.clientWidth;
+    var h = speedChartCanvas.clientHeight || 70;
+    speedChartCanvas.width = w;
+    speedChartCanvas.height = h;
+    speedChartCtx.clearRect(0, 0, w, h);
+    if(speedHistory.length < 2) return;
+    var maxV = Math.max.apply(null, speedHistory.concat([1]));
+    speedChartCtx.strokeStyle = '#e0a44e';
+    speedChartCtx.lineWidth = 2;
+    speedChartCtx.beginPath();
+    speedHistory.forEach(function(v, i){
+      var x = (i / (speedHistory.length - 1)) * w;
+      var y = h - (v / maxV) * (h * 0.85) - 6;
+      if(i === 0) speedChartCtx.moveTo(x, y); else speedChartCtx.lineTo(x, y);
+    });
+    speedChartCtx.stroke();
+  }
+
+  startSpeedBtn.addEventListener('click', function(){
+    if(!navigator.geolocation){ alert('Geolocation supported nahi hai.'); return; }
+    speedBuffer = []; speedHistory = []; maxSpeedDisp = 0; totalDistForAvg = 0; totalTimeForAvg = 0; lastSpeedPos = null;
+    speedMaxEl.textContent = '0.0';
+    speedAvgEl.textContent = '0.0';
+
+    speedWatchId = navigator.geolocation.watchPosition(function(pos){
+      var lat = pos.coords.latitude, lon = pos.coords.longitude, spd = pos.coords.speed, acc = pos.coords.accuracy;
+      speedAccuracyNoteEl.textContent = 'GPS accuracy: ±' + acc.toFixed(0) + 'm';
+
+      var mps;
+      if(spd !== null && spd !== undefined && spd >= 0){
+        mps = spd;
+      } else if(lastSpeedPos){
+        var dt0 = (pos.timestamp - lastSpeedPos.t) / 1000;
+        var d0 = haversine(lastSpeedPos.lat, lastSpeedPos.lon, lat, lon);
+        mps = dt0 > 0 ? d0 / dt0 : 0;
+      } else {
+        mps = 0;
+      }
+
+      if(lastSpeedPos){
+        var dt = (pos.timestamp - lastSpeedPos.t) / 1000;
+        var d = haversine(lastSpeedPos.lat, lastSpeedPos.lon, lat, lon);
+        totalDistForAvg += d;
+        totalTimeForAvg += dt;
+      }
+      lastSpeedPos = {lat: lat, lon: lon, t: pos.timestamp};
+
+      speedBuffer.push(mps);
+      if(speedBuffer.length > 5) speedBuffer.shift();
+      var smoothed = speedBuffer.reduce(function(a,b){ return a+b; }, 0) / speedBuffer.length;
+      var displaySpeed = convertSpeed(smoothed);
+
+      speedValueEl.textContent = displaySpeed.toFixed(1);
+      maxSpeedDisp = Math.max(maxSpeedDisp, displaySpeed);
+      speedMaxEl.textContent = maxSpeedDisp.toFixed(1);
+
+      var avgMps = totalTimeForAvg > 0 ? totalDistForAvg / totalTimeForAvg : 0;
+      speedAvgEl.textContent = convertSpeed(avgMps).toFixed(1);
+
+      speedHistory.push(displaySpeed);
+      if(speedHistory.length > 50) speedHistory.shift();
+      drawSpeedChart();
+    }, function(err){
+      alert('GPS error: ' + err.message);
+    }, {enableHighAccuracy:true, maximumAge:1000, timeout:20000});
+
+    startSpeedBtn.disabled = true;
+    stopSpeedBtn.disabled = false;
+  });
+
+  stopSpeedBtn.addEventListener('click', function(){
+    if(speedWatchId !== null){ navigator.geolocation.clearWatch(speedWatchId); speedWatchId = null; }
+    startSpeedBtn.disabled = false;
+    stopSpeedBtn.disabled = true;
+  });
+
+  toggleUnitBtn.addEventListener('click', function(){
+    unit = unit === 'kmh' ? 'mph' : 'kmh';
+    var label = unit === 'kmh' ? 'km/h' : 'mph';
+    speedUnitLabelEl.textContent = label;
+    speedUnitStatEl.textContent = label;
+  });
+})();
+</script>
+</body>
+</html>
